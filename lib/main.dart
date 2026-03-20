@@ -1,14 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'overlay/kiosk_overlay.dart';
 import 'screens/login_screen.dart';
 import 'screens/qr_scanner_screen.dart';
 
+// overlayMain must be reachable globally for flutter_overlay_window
+export 'overlay/kiosk_overlay.dart' show overlayMain;
+
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(const ParaqarDriverApp());
 }
 
 class ParaqarDriverApp extends StatelessWidget {
-  const ParaqarDriverApp({Key? key}) : super(key: key);
+  const ParaqarDriverApp({super.key});
 
   Future<bool> _checkAuth() async {
     const storage = FlutterSecureStorage();
@@ -22,7 +28,7 @@ class ParaqarDriverApp extends StatelessWidget {
       title: 'Paraqar Driver',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        primarySwatch: Colors.green,
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1A4FBB)),
         useMaterial3: true,
       ),
       home: FutureBuilder<bool>(
@@ -31,10 +37,7 @@ class ParaqarDriverApp extends StatelessWidget {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Scaffold(body: Center(child: CircularProgressIndicator()));
           }
-          if (snapshot.data == true) {
-            return const QRScannerScreen();
-          }
-          return const LoginScreen();
+          return snapshot.data == true ? const QRScannerScreen() : const LoginScreen();
         },
       ),
     );
