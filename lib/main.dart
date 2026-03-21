@@ -1,12 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'overlay/kiosk_overlay.dart';
 import 'screens/login_screen.dart';
 import 'screens/qr_scanner_screen.dart';
-
-// overlayMain must be reachable globally for flutter_overlay_window
-export 'overlay/kiosk_overlay.dart' show overlayMain;
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();

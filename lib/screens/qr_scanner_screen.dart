@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:audioplayers/audioplayers.dart';
-import 'package:flutter_overlay_window/flutter_overlay_window.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../utils/api_client.dart';
 import 'login_screen.dart';
 
@@ -13,12 +13,13 @@ class QRScannerScreen extends StatefulWidget {
 }
 
 class _QRScannerScreenState extends State<QRScannerScreen> with SingleTickerProviderStateMixin {
+  static const MethodChannel _kioskChannel = MethodChannel('com.example.frontend_driver/kiosk');
   final MobileScannerController _cam = MobileScannerController(
     detectionSpeed: DetectionSpeed.noDuplicates,
   );
   final AudioPlayer _audio = AudioPlayer();
   bool _isProcessing = false;
-  bool _overlayActive = false;
+  bool _backgroundScannerActive = false;
   _ScanResult? _result;
   late AnimationController _flashAnim;
   late Animation<double> _flashOpacity;
@@ -28,12 +29,6 @@ class _QRScannerScreenState extends State<QRScannerScreen> with SingleTickerProv
     super.initState();
     _flashAnim = AnimationController(vsync: this, duration: const Duration(milliseconds: 1600));
     _flashOpacity = CurvedAnimation(parent: _flashAnim, curve: Curves.easeOut);
-    _checkOverlayPermission();
-  }
-
-  Future<void> _checkOverlayPermission() async {
-    final granted = await FlutterOverlayWindow.isPermissionGranted();
-    if (mounted) setState(() => _overlayActive = granted ?? false);
   }
 
   @override
@@ -76,29 +71,39 @@ class _QRScannerScreenState extends State<QRScannerScreen> with SingleTickerProv
     if (mounted) setState(() { _isProcessing = false; _result = null; });
   }
 
-  // ── Kiosk overlay launcher ────────────────────────────────────────────────
+  // ── Native Background Scanner launcher ────────────────────────────────────
   Future<void> _startKioskMode() async {
-    final granted = await FlutterOverlayWindow.isPermissionGranted();
-    if (!(granted ?? false)) {
-      await FlutterOverlayWindow.requestPermission();
-      return;
+    // Request notification and camera permissions required for the Native Foreground Service
+    if (await Permission.notification.isDenied) {
+      await Permission.notification.request();
     }
-    await FlutterOverlayWindow.showOverlay(
-      enableDrag: true,
-      overlayTitle: 'Paraqar Scanner',
-      overlayContent: 'QR Scanner Active',
-      flag: OverlayFlag.defaultFlag,
-      visibility: NotificationVisibility.visibilityPublic,
-      positionGravity: PositionGravity.auto,
-      height: 340,
-      width: 300,
-    );
-    if (mounted) setState(() => _overlayActive = true);
+    if (await Permission.camera.isDenied) {
+      await Permission.camera.request();
+    }
+
+    try {
+      final token = await ApiClient.getToken();
+      await _kioskChannel.invokeMethod('startService', {
+        'token': token,
+        'baseUrl': ApiClient.baseUrl,
+      });
+
+      if (mounted) setState(() => _backgroundScannerActive = true);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Background scanner started! Check notifications.')),
+        );
+      }
+    } catch (e) {
+      debugPrint('Failed to start native scanner service: $e');
+    }
   }
 
   Future<void> _stopKioskMode() async {
-    await FlutterOverlayWindow.closeOverlay();
-    if (mounted) setState(() => _overlayActive = false);
+    try {
+      await _kioskChannel.invokeMethod('stopService');
+    } catch (_) {}
+    if (mounted) setState(() => _backgroundScannerActive = false);
   }
 
   Future<void> _logout() async {
@@ -178,7 +183,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> with SingleTickerProv
                 const SizedBox(height: 20),
                 // Kiosk mode toggle
                 SizedBox(width: double.infinity,
-                  child: _overlayActive
+                  child: _backgroundScannerActive
                     ? OutlinedButton.icon(
                         style: OutlinedButton.styleFrom(foregroundColor: Colors.white70,
                           side: const BorderSide(color: Colors.white30),

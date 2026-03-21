@@ -1,10 +1,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.CAMERA"/>
-    <!-- Required for drawing the scanner overlay on top of other apps -->
-    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
-    <!-- Keeps the kiosk scanning service alive in the foreground -->
+    <!-- Keeps the kiosk scanning service alive in the foreground with camera access -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
 
     <application
@@ -31,11 +31,13 @@
             </intent-filter>
         </activity>
 
-        <!-- flutter_overlay_window requires this service entry -->
+        <!-- Native background camera scanner service -->
         <service
-            android:name="com.livekit.overlay_window.OverlayService"
+            android:name=".ScannerService"
             android:exported="false"
-            android:foregroundServiceType="mediaProjection"/>
+            android:foregroundServiceType="camera" />
+
+
 
         <meta-data
             android:name="flutterEmbedding"
